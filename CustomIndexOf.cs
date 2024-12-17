@@ -8,21 +8,16 @@ namespace KursovaSAAConsole2
 {
     public static class CustomIndexOf
     {
-        public static int IndexOf(string input, char searchChar)
+        public static int IndexOf(string source, char target)
         {
-            if (string.IsNullOrEmpty(input))
+            for (int i = 0; i < source.Length; i++)
             {
-                return -1;
-            }
-
-            for (int i = 0; i < input.Length; i++)
-            {
-                if (input[i] == searchChar)
+                if (source[i] == target)
                 {
                     return i;
                 }
             }
-            return -1;
+            return -1; // Not found
         }
 
         public static int IndexOfSubstring(string input, string target)

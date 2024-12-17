@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace KursovaSAAConsole2
 {
-    public class TreeStringSerialzier : ISerializer<string>
+    public class TreeStringSerializer : ISerializer<string>
     {
         public byte[] Serialize(string value)
         {

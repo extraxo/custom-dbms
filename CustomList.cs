@@ -84,7 +84,6 @@ namespace KursovaSAAConsole2
             EnsureCapacity(Count + 1);
             _array[Count++] = item;
         }
-
         public void Clear()
         {
             Array.Clear(_array, 0, Count);
@@ -115,21 +114,22 @@ namespace KursovaSAAConsole2
 
         public void Insert(int index, T item)
         {
-            if (index > Count)
-            {
-                throw new IndexOutOfRangeException();
-            }
-
             EnsureCapacity(Count + 1);
             Array.Copy(_array, index, _array, index + 1, Count - index);
+            _array[index] = item;
             Count++;
         }
 
+
         public void RemoveAt(int index)
         {
+            if (index < 0 || index >= Count)
+                throw new ArgumentOutOfRangeException();
+
             Array.Copy(_array, index + 1, _array, index, Count - index - 1);
-            Count--;
+            _array[--Count] = default; 
         }
+
 
         public bool Remove(T item)
         {
@@ -159,34 +159,25 @@ namespace KursovaSAAConsole2
             return GetEnumerator();
         }
 
-        public int BinarySearch(T item, IComparer<T>? comparer = null)
+        public int BinarySearch(T item, IComparer<T> comparer = null)
         {
             comparer ??= Comparer<T>.Default;
-
-            int low = 0;
-            int high = Count - 1;
+            int low = 0, high = Count - 1;
 
             while (low <= high)
             {
-                int mid = low + ((high - low) / 2);
+                int mid = low + (high - low) / 2;
+
                 int comparison = comparer.Compare(_array[mid], item);
 
-                if (comparison == 0)
-                {
-                    return mid;
-                }
-                else if (comparison < 0)
-                {
-                    low = mid + 1;
-                }
-                else
-                {
-                    high = mid - 1;
-                }
+                if (comparison == 0) return mid;
+                if (comparison < 0) low = mid + 1;
+                else high = mid - 1;
             }
 
-            return ~low;
+            return ~low; 
         }
+
 
         public void AddRange(IEnumerable<T> items)
         {
@@ -206,14 +197,23 @@ namespace KursovaSAAConsole2
         }
         public void RemoveRange(int index, int count)
         {
-
             Array.Copy(_array, index + count, _array, index, Count - index - count);
 
-            Count -= count;
-            
-            Array.Clear(_array, Count, count);
+            for (int i = Count - count; i < Count; i++)
+            {
+                _array[i] = default(T);
+            }
 
+            Count -= count;
         }
+
+
+        public void RemoveRange(int index)
+        {
+            RemoveRange(index, Count - index);
+        }
+
+
 
         public void Sort()
         {

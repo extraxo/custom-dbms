@@ -17,7 +17,6 @@
                 if (createdTable != null)
                 {
                     Console.WriteLine("Table 'Sample' created successfully!");
-                    Console.WriteLine("Columns:");
                     foreach (var column in createdTable.Columns)
                     {
                         Console.WriteLine($"- {column.Name} ({column.Type}), Default: {column.DefaultValue}");
