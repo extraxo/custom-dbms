@@ -76,18 +76,21 @@ namespace KursovaSAAConsole2
 
         public void CreateTable(string command)
         {
-            var commandParts = CustomSplit.SplitString(command, ' ');
-
-            if (commandParts.Count < 3 || commandParts[0] != "CREATE" || commandParts[1] != "TABLE")
+            int createTableStart = CustomIndexOf.IndexOfSubstring(command, "CREATE TABLE");
+            if (createTableStart < 0)
             {
-                throw new ArgumentException("Invalid CREATE TABLE command syntax.");
+                throw new ArgumentException("Missing 'CREATE TABLE' keyword.");
             }
 
-            int start = CustomIndexOf.IndexOfSubstring(command, "CREATE TABLE") + "CREATE TABLE".Length;
-            int end = CustomIndexOf.IndexOfSubstring(command, "(");
-            string tableName = command.Substring(start, end - start).Trim();
+            int tableNameStart = createTableStart + "CREATE TABLE".Length;
+            int tableNameEnd = CustomIndexOf.IndexOfSubstring(command, "(");
+            if (tableNameEnd < 0 || tableNameStart >= tableNameEnd)
+            {
+                throw new ArgumentException("Invalid table name syntax.");
+            }
 
-            Console.WriteLine($"Table name extracted: {tableName}");
+            string tableName = command.Substring(tableNameStart, tableNameEnd - tableNameStart).Trim();
+
 
             int columnSectionStart = command.IndexOf("(") + 1;
             int columnSectionEnd = command.IndexOf(")");
@@ -125,43 +128,20 @@ namespace KursovaSAAConsole2
 
             var newTable = new Table(tableName, _recordStorage);
 
-            foreach (var column in columns)
-            {
-                newTable.AddColumn(column.Name, column.Type, column.DefaultValue);
-                Console.WriteLine($"Column {column.Name} added to table.");
-            }
-
             _tables.Insert(tableName, newTable);
 
-            Console.WriteLine($"Inserted table: {tableName} ({string.Join(", ", columns.Select(col => $"{col.Name}:{col.Type}"))})");
         }
-
 
         public Table GetTable(string tableName)
         {
-            Console.WriteLine($"Searching for table with key: {tableName}");
             var result = _tables.Get(tableName);
 
-            if (result == null)
-            {
-                Console.WriteLine($"Table with name {tableName} not found.");
-                return null; // Return null or handle the error accordingly
-            }
-            else
-            {
-                Console.WriteLine($"Table with name {tableName} found.");
-            }
-
-            // Ensure result.Item2 is valid (i.e., the table is properly retrieved)
-            return result.Item2; // Access Item2 safely
+            return result.Item2; 
         }
-
-
-
 
         private byte[] SerializeTableMetadata(Table table)
         {
-            var serializer = new TreeStringSerialzier();
+            var serializer = new TreeStringSerializer();
             var metadata = new MemoryStream();
 
             var tableNameBytes = serializer.Serialize(table.TableName);
@@ -183,6 +163,7 @@ namespace KursovaSAAConsole2
         public bool TryGetTable(string tableName, out Table table)
         {
             var result = _tables.Get(tableName); 
+            
             if (result == null)
             {
                 table = null;

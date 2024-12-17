@@ -95,14 +95,21 @@ namespace KursovaSAAConsole2
             var entries = new Tuple<Key, Value>[entriesCount];
             for (var i = 0; i < entriesCount; i++)
             {
-                var key = _keySerializer.Deserialize(buffer
-                    , 12 + i * entrySize
-                    , _keySerializer.Length);
-                var value = _valueSerializer.Deserialize(buffer
-                    , 12 + i * entrySize + _keySerializer.Length
-                    , _valueSerializer.Length);
+                var key = _keySerializer.Deserialize(buffer, 12 + i * entrySize, _keySerializer.Length);
+                if (key == null)
+                {
+                    Console.WriteLine($"Deserialized null key at index {i} in FixedLengthDeserialize.");
+                }
+
+                var value = _valueSerializer.Deserialize(buffer, 12 + i * entrySize + _keySerializer.Length, _valueSerializer.Length);
+                if (value == null)
+                {
+                    Console.WriteLine($"Deserialized null value at index {i} in FixedLengthDeserialize.");
+                }
+
                 entries[i] = new Tuple<Key, Value>(key, value);
             }
+
 
             var children = new uint[childrenCount];
             for (var i = 0; i < childrenCount; i++)
@@ -126,12 +133,17 @@ namespace KursovaSAAConsole2
             for (var i = 0; i < entriesCount; i++)
             {
                 var keyLength = BufferReader.ReadBufferInt32(buffer, p);
-                var key = _keySerializer.Deserialize(buffer
-                    , p + 4
-                    , keyLength);
-                var value = _valueSerializer.Deserialize(buffer
-                    , p + 4 + keyLength
-                    , _valueSerializer.Length);
+                var key = _keySerializer.Deserialize(buffer, p + 4, keyLength);
+                if (key == null)
+                {
+                    Console.WriteLine($"Deserialized null key at index {i} in VariableKeyLengthDeserialize.");
+                }
+
+                var value = _valueSerializer.Deserialize(buffer, p + 4 + keyLength, _valueSerializer.Length);
+                if (value == null)
+                {
+                    Console.WriteLine($"Deserialized null value at index {i} in VariableKeyLengthDeserialize.");
+                }
 
                 entries[i] = new Tuple<Key, Value>(key, value);
 

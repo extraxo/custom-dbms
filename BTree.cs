@@ -85,41 +85,43 @@ namespace KursovaSAAConsole2
 
         public void Insert(Key key, Value value)
         {
-            Console.WriteLine($"Inserting key: {key}");
-
             int insertionIndex = 0;
+
             var node = FindNodeForInsertion(key, ref insertionIndex);
 
-            Console.WriteLine($"Inserting key: {key} at position: {insertionIndex}");
+            int finalIndex = insertionIndex >= 0 ? insertionIndex : ~insertionIndex;
 
-            node.InsertAsLeaf(key, value, insertionIndex >= 0 ? insertionIndex : ~insertionIndex);
+            node.InsertAsLeaf(key, value, finalIndex);
 
             if (node.IsOverflow)
             {
                 TreeNode<Key, Value> left, right;
+                Console.WriteLine("Node overflow detected, splitting node.");
                 node.Split(out left, out right);
+
             }
 
             _nodeManager.SaveChanges();
-            Console.WriteLine($"Key inserted: {key}");
         }
+
 
         public Tuple<Key, Value> Get(Key key)
         {
-            Console.WriteLine($"Searching for key: {key}");
-            var insertionIndex = 0;
+
+            int insertionIndex = 0;
             var node = FindNodeForInsertion(key, ref insertionIndex);
-            if (insertionIndex < 0)
+
+            if (insertionIndex >= 0 && insertionIndex < node.EntriesCount)
             {
-                Console.WriteLine($"Key not found in node.");
-                return null;
+                var entry = node.GetEntry(insertionIndex);
+                if (entry.Item1.Equals(key))
+                {
+                    return entry;
+                }
             }
 
-            Console.WriteLine($"Key found at position: {insertionIndex}");
-            return node.GetEntry(insertionIndex);
+            return null;
         }
-
-
 
         public IEnumerable<Tuple<Key, Value>> LargerOrEqual(Key key)
         {
@@ -214,9 +216,17 @@ namespace KursovaSAAConsole2
                 return node;
             }
         }
-        TreeNode<Key, Value> FindNodeForInsertion(Key key, ref int insertionIndex)
+        private TreeNode<Key, Value> FindNodeForInsertion(Key key, ref int index)
         {
-            return FindNodeForInsertion(key, _nodeManager.Root, ref insertionIndex);
+            var currentNode = _nodeManager.Root;
+            while (!currentNode.IsLeaf)
+            {
+                index = currentNode.BinarySearchEntriesForKey(key);
+                currentNode = index < 0 ? currentNode.GetChildNode(~index) : currentNode.GetChildNode(index + 1);
+            }
+
+            index = currentNode.BinarySearchEntriesForKey(key);
+            return currentNode;
         }
 
     }
