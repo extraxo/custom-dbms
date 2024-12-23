@@ -7,31 +7,38 @@
             string databasePath = "database.db";
             Database db = new Database(databasePath);
 
-            string createCommand = "CREATE TABLE Sample(Id:int, Name:string, BirthDate:date default '01.01.2022')";
-            db.CreateTable(createCommand);
-
             try
             {
-                var createdTable = db.GetTable("Sample");
+                string createCommand = "CREATE TABLE TestTable(Id:int, Name:string)";
+                Console.WriteLine("Executing CREATE TABLE...");
+                db.CreateTable(createCommand);
 
+                var createdTable = db.GetTable("TestTable");
                 if (createdTable != null)
                 {
-                    Console.WriteLine("Table 'Sample' created successfully!");
-                    foreach (var column in createdTable.Columns)
-                    {
-                        Console.WriteLine($"- {column.Name} ({column.Type}), Default: {column.DefaultValue}");
-                    }
+                    Console.WriteLine("Table 'TestTable' created successfully!");
                 }
                 else
                 {
-                    Console.WriteLine("Failed to create table or unable to retrieve table.");
+                    Console.WriteLine("Table creation failed.");
+                    return;
                 }
+
+                Console.WriteLine("\nExecuting DROP TABLE...");
+                db.DropTable("DROP TABLE TestTable");
+               
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
             }
+            finally
+            {
+                db.Dispose();
+            }
 
+            Console.WriteLine("\nTest complete. Press any key to exit.");
+            Console.ReadKey();
         }
     }
 }

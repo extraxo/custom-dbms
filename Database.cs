@@ -76,6 +76,7 @@ namespace KursovaSAAConsole2
 
         public void CreateTable(string command)
         {
+
             int createTableStart = CustomIndexOf.IndexOfSubstring(command, "CREATE TABLE");
             if (createTableStart < 0)
             {
@@ -91,12 +92,12 @@ namespace KursovaSAAConsole2
 
             string tableName = command.Substring(tableNameStart, tableNameEnd - tableNameStart).Trim();
 
-
             int columnSectionStart = command.IndexOf("(") + 1;
             int columnSectionEnd = command.IndexOf(")");
+
             if (columnSectionStart < 0 || columnSectionEnd < 0 || columnSectionEnd <= columnSectionStart)
             {
-                throw new ArgumentException("Invalid command format. Parentheses are not balanced.");
+                throw new ArgumentException("Invalid column section syntax.");
             }
 
             var columnSection = command.Substring(columnSectionStart, columnSectionEnd - columnSectionStart);
@@ -115,7 +116,6 @@ namespace KursovaSAAConsole2
 
                 var columnName = columnParts[0];
                 var columnType = columnParts[1];
-
                 var defaultValue = columnParts.Count > 3 && columnParts[2].ToLower() == "default" ? columnParts[3].Trim() : null;
 
                 columns.Add(new Column(columnName, columnType, defaultValue));
@@ -127,16 +127,36 @@ namespace KursovaSAAConsole2
             }
 
             var newTable = new Table(tableName, _recordStorage);
+            foreach (var column in columns)
+            {
+                newTable.AddColumn(column.Name, column.Type, column.DefaultValue);
+            }
 
             _tables.Insert(tableName, newTable);
-
         }
+
 
         public Table GetTable(string tableName)
         {
+            if (string.IsNullOrWhiteSpace(tableName))
+            {
+                throw new ArgumentException("Table name cannot be null or empty.");
+            }
+
             var result = _tables.Get(tableName);
 
-            return result.Item2; 
+            if (result == null)
+            {
+                throw new ArgumentException($"Table '{tableName}' does not exist or has been dropped.");
+            }
+
+
+            return result.Item2;
+        }
+
+        public bool TableExists(string tableName)
+        {
+            return _tables.Get(tableName) != null;
         }
 
         private byte[] SerializeTableMetadata(Table table)
@@ -160,20 +180,40 @@ namespace KursovaSAAConsole2
 
             return metadata.ToArray();
         }
-        public bool TryGetTable(string tableName, out Table table)
+
+        public void DropTable(string command)
         {
-            var result = _tables.Get(tableName); 
-            
-            if (result == null)
+            var commandParts = CustomSplit.SplitString(command, ' ');
+
+            if (commandParts.Count != 3 || commandParts[0] != "DROP" || commandParts[1] != "TABLE")
             {
-                table = null;
-                return false;
+                throw new ArgumentException("Invalid DROP TABLE command syntax. Correct format: DROP TABLE <TableName>");
             }
 
-            table = result.Item2; 
-            return true;
+            string tableName = commandParts[2].Trim();
+
+            if (!TableExists(tableName))
+            {
+                Console.WriteLine($"Table '{tableName}' does not exist.");
+                return;
+            }
+
+            DeleteAllRecordsForTable(tableName);
+
+            _tables.Delete(tableName);
+            Console.WriteLine($"Table '{tableName}' successfully dropped.");
         }
 
+        public void DeleteAllRecordsForTable(string tableName)
+        {
+            var recordIds = _recordStorage.GetRecordIdsForTable(tableName);
+
+            foreach (var id in recordIds)
+            {
+                _recordStorage.Delete(id);
+            }
+
+        }
 
         public void Dispose()
         {

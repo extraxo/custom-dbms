@@ -26,56 +26,97 @@ namespace KursovaSAAConsole2
 
         public virtual byte[] Find(uint recordId)
         {
-            using (var block = _blockStorage.Find(recordId))
+            try
             {
-                if (block == null)
+                // Attempt to find the initial block
+                using (var block = _blockStorage.Find(recordId))
                 {
-                    return null;
-                }
-
-                if (1L == block.GetHeader(_isDeleted))
-                {
-                    return null;
-                }
-
-                if (0L == block.GetHeader(_previousBlockId))
-                {
-                    return null;
-                }
-
-                var _totalSize = block.GetHeader(_recordLength);
-
-                var data = new byte[_totalSize];
-                var bytesRead = 0;
-
-                IBlock _currentBlock = block;
-                while (true)
-                {
-                    int _nextBlock;
-
-                    using (_currentBlock)
+                    if (block == null)
                     {
-                        var _blockContentLength = _currentBlock.GetHeader(_contentLength);
-                        _currentBlock.Read(data, bytesRead, 0, (int)_blockContentLength);
+                        return null;
+                    }
 
-                        bytesRead += (int)_blockContentLength;
+                    // Check if the block is marked as deleted
+                    if (1L == block.GetHeader(_isDeleted))
+                    {
+                        Console.WriteLine($"Warning: Block with Record ID {recordId} is marked as deleted.");
+                        return null;
+                    }
 
-                        _nextBlock = (int)_currentBlock.GetHeader(_nextBlockId);
+                    // Check if this block is a child block
+                    if (0L != block.GetHeader(_previousBlockId))
+                    {
+                        Console.WriteLine($"Error: Block with Record ID {recordId} is a child block.");
+                        return null;
+                    }
 
-                        if (_nextBlock == 0)
+                    // Ensure record size is valid
+                    var totalRecordSize = block.GetHeader(_recordLength);
+                    if (totalRecordSize > _maxRecordSize)
+                    {
+                        throw new NotSupportedException("Unexpected record length: " + totalRecordSize);
+                    }
+
+                    var data = new byte[totalRecordSize];
+                    var bytesRead = 0;
+
+                    // Initialize currentBlock
+                    IBlock currentBlock = block;
+                    while (true)
+                    {
+                        uint nextBlockId;
+
+                        using (currentBlock)
                         {
-                            return data;
+                            var thisBlockContentLength = currentBlock.GetHeader(_contentLength);
+                            if (thisBlockContentLength > _blockStorage.BlockContentSize)
+                            {
+                                throw new InvalidDataException("Unexpected block content length: " + thisBlockContentLength);
+                            }
+
+                            // Read content of the current block
+                            currentBlock.Read(
+                                dst: data,
+                                dstOffset: bytesRead,
+                                srcOffset: 0,
+                                count: (int)thisBlockContentLength
+                            );
+
+                            // Update number of bytes read
+                            bytesRead += (int)thisBlockContentLength;
+
+                            // Retrieve next block ID
+                            nextBlockId = (uint)currentBlock.GetHeader(_nextBlockId);
+                        }
+
+                        // If there's no next block, break the loop
+                        if (nextBlockId == 0)
+                        {
+                            break;
+                        }
+
+                        // Find the next block
+                        currentBlock = _blockStorage.Find(nextBlockId);
+                        if (currentBlock == null)
+                        {
+                            throw new InvalidDataException($"Next block not found by ID: {nextBlockId}");
                         }
                     }
 
-                    _currentBlock = _blockStorage.Find(_nextBlockId);
-                    if (_currentBlock == null)
-                    {
-                        throw new InvalidDataException("Block not found by ID: " + _nextBlockId);
-                    }
+                    return data;
                 }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in Find: {ex.Message}");
+                throw; // Rethrow exception for higher-level handling
+            }
         }
+
+
+
+
+
         public virtual uint Create(Func<uint, byte[]> dataCreator)
         {
             using (var _firstBlock = AllocateBlock())
@@ -240,7 +281,7 @@ namespace KursovaSAAConsole2
                         }
                         else
                         {
-                            _nextBlock = _blockStorage.Find(_nextBlockId);
+                            _nextBlock = _blockStorage.Find((uint)nextBlockId);
                             if(_currentBlock == null)
                             {
                                 throw new InvalidDataException("Block not found by id: " + nextBlockId);
@@ -370,6 +411,8 @@ namespace KursovaSAAConsole2
                 }
             }
         }
+
+
         uint ReadUint32FromContent(IBlock block)
         {
             var _buffer = new byte[4];
@@ -431,6 +474,85 @@ namespace KursovaSAAConsole2
             }
 
         }
+        public IEnumerable<uint> GetRecordIdsForTable(string tableName)
+        {
+            var matchingRecordIds = new CustomList<uint>();
+
+            uint currentRecordId = 1;
+            uint maxRecordId = GetMaxRecordId(); 
+
+            while (currentRecordId <= maxRecordId)
+            {
+                try
+                {
+                    var data = Find(currentRecordId);
+                    if (data == null || data.Length == 0)
+                    {
+                        currentRecordId++;
+                        continue;
+                    }
+
+                    string content = Encoding.UTF8.GetString(data);
+
+                    if (content.Contains($"Table:{tableName}"))
+                    {
+                        matchingRecordIds.Add(currentRecordId);
+                    }
+                }
+                catch (InvalidDataException)
+                {
+                    break;
+                }
+                catch (Exception)
+                {
+                    break;
+                }
+
+                currentRecordId++;
+            }
+
+            return matchingRecordIds;
+        }
+
+
+        public uint GetMaxRecordId()
+        {
+            uint maxRecordId = 0;
+            uint currentRecordId = 1; 
+
+            while (true)
+            {
+                try
+                {
+                    var data = Find(currentRecordId);
+                    if (data != null && data.Length > 0)
+                    {
+                        maxRecordId = currentRecordId;
+                    }
+                    else
+                    {
+                        
+                        break;
+                    }
+                }
+                catch (InvalidDataException)
+                {
+                    Console.WriteLine($"Invalid data encountered at Record ID {currentRecordId}. Assuming end of valid records.");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error while determining max record ID at Record ID {currentRecordId}: {ex.Message}");
+                    break;
+                }
+
+                currentRecordId++;
+            }
+
+            return maxRecordId;
+        }
+
+
         void SpaceTracker(out IBlock lastBlock, out IBlock secondLastBlock)
         {
             lastBlock = null;
