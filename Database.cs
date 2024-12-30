@@ -1,21 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.Serialization.Json;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
+﻿using System.Text;
 
 namespace KursovaSAAConsole2
 {
-    
+
     public class Column
     {
         public string Name { get; set; }
         public string Type { get; set; }
         public string DefaultValue { get; set; }
 
-        public Column(string name, string type, string defValue) 
+        public Column(string name, string type, string defValue)
         {
             Name = name;
             Type = type;
@@ -29,11 +23,14 @@ namespace KursovaSAAConsole2
         public CustomList<Column> Columns { get; set; }
         private readonly RecordStorage _recordStorage;
 
+        public int RowCount { get; private set; }
+
         public Table(string name, RecordStorage recordStorage)
         {
             TableName = name;
             Columns = new CustomList<Column>();
             _recordStorage = recordStorage;
+            RowCount = 0; 
         }
 
         public void AddColumn(string name, string type, string defaultValue = null)
@@ -52,8 +49,12 @@ namespace KursovaSAAConsole2
             }
             _recordStorage.Create(System.Text.Encoding.UTF8.GetBytes(columnData));
         }
-    }
 
+        public void RowCountFunc()
+        {
+            RowCount++;
+        }
+    }
     public class Database
     {
         ushort _minEntriesCountPerNode = 36;
@@ -92,8 +93,9 @@ namespace KursovaSAAConsole2
 
             string tableName = command.Substring(tableNameStart, tableNameEnd - tableNameStart).Trim();
 
-            int columnSectionStart = command.IndexOf("(") + 1;
-            int columnSectionEnd = command.IndexOf(")");
+            int columnSectionStart = CustomIndexOf.IndexOf(command, '(') + 1;
+
+            int columnSectionEnd = CustomIndexOf.IndexOf(command, '(');
 
             if (columnSectionStart < 0 || columnSectionEnd < 0 || columnSectionEnd <= columnSectionStart)
             {
@@ -138,10 +140,6 @@ namespace KursovaSAAConsole2
 
         public Table GetTable(string tableName)
         {
-            if (string.IsNullOrWhiteSpace(tableName))
-            {
-                throw new ArgumentException("Table name cannot be null or empty.");
-            }
 
             var result = _tables.Get(tableName);
 
@@ -150,8 +148,121 @@ namespace KursovaSAAConsole2
                 throw new ArgumentException($"Table '{tableName}' does not exist or has been dropped.");
             }
 
-
             return result.Item2;
+        }
+
+        public void TableInfo(string tableName)
+        {
+            var table = _tables.Get(tableName).Item2;
+            
+            if (table == null)
+            {
+                Console.WriteLine($"Error: Table '{tableName}' does not exist.");
+                return;
+            }
+
+            Console.WriteLine($"Table Name: {tableName}");
+
+            int totalBytes = 0;
+            int recordCount = 0;
+
+            foreach (var recordId in _recordStorage.GetRecordIdsForTable(tableName))
+            {
+                var record = _recordStorage.Find(recordId);
+                if (record != null)
+                {
+                    recordCount++;
+                    totalBytes += record.Length;
+                }
+            }
+
+            Console.WriteLine($"Total Records: {recordCount}");
+            Console.WriteLine($"Total Space Used: {totalBytes} bytes");
+        }
+        public void InsertInto(string command)
+        {
+            
+            Console.WriteLine($"Processing INSERT INTO command: {command}");
+
+            int insertStart = CustomIndexOf.IndexOfSubstring(command, "INSERT INTO");
+            if (insertStart < 0)
+            {
+               throw new ArgumentException("Missing 'INSERT INTO' keyword.");
+            }
+
+            int tableNameStart = insertStart + "INSERT INTO".Length;
+            int tableNameEnd = CustomIndexOf.IndexOfSubstring(command, "(");
+            if (tableNameEnd < 0 || tableNameStart >= tableNameEnd)
+            {
+               throw new ArgumentException("Invalid table name syntax.");
+            }
+
+            string tableName = command.Substring(tableNameStart, tableNameEnd - tableNameStart).Trim();
+            var table = GetTable(tableName);
+
+            if (table == null)
+            {
+               throw new InvalidOperationException($"Table '{tableName}' does not exist.");
+            }
+
+            int columnsStart = CustomIndexOf.IndexOf(command, '(') + 1;
+            int columnsEnd = CustomIndexOf.IndexOf(command,')');
+            string columnsSection = command.Substring(columnsStart, columnsEnd - columnsStart).Trim();
+            var columnNames = CustomSplit.SplitString(columnsSection, ',');
+
+            int valuesStart = CustomIndexOf.IndexOfSubstring(command, "VALUES (") + "VALUES (".Length;
+            int valuesEnd = CustomIndexOf.IndexOf(command,'(');
+            string valuesSection = command.Substring(valuesStart, valuesEnd - valuesStart).Trim();
+            var values = CustomSplit.SplitString(valuesSection, ',');
+
+            if (columnNames.Count != values.Count)
+            {
+               throw new ArgumentException("Number of columns does not match number of values.");
+            }
+
+            var rowData = new CustomDictionary<string, string>();
+            for (int i = 0; i < columnNames.Count; i++)
+            {
+              string columnName = columnNames[i].Trim();
+              string value = values[i].Trim();
+
+              var column = table.Columns.FirstOrDefault(c => c.Name == columnName);
+              if (column == null)
+              {
+                 throw new ArgumentException($"Column '{columnName}' does not exist in table '{tableName}'.");
+              }
+
+              if (column.Type == "int" && !int.TryParse(value, out _))
+              {
+                  throw new ArgumentException($"Value '{value}' is not valid for column '{columnName}' of type 'int'.");
+              }
+
+              rowData[columnName] = value;
+            }
+
+            foreach (var column in table.Columns)
+            {
+              if (!rowData.ContainsKey(column.Name))
+              {
+                if (column.DefaultValue != null)
+                {
+                  rowData[column.Name] = column.DefaultValue;
+                }
+                else
+                {
+                   throw new ArgumentException($"Missing value for column '{column.Name}' which has no default value.");
+                }
+              }
+            }
+
+            string recordContent = string.Join(", ", rowData.Select(kv => $"{kv.Key}:{kv.Value}"));
+            var recordData = Encoding.UTF8.GetBytes($"Table:{tableName}; {recordContent}");
+            uint recordId = _recordStorage.Create(recordData);
+            Console.WriteLine($"Record inserted with ID {recordId} for table '{tableName}'.");
+
+            table.RowCountFunc();
+            Console.WriteLine($"Table '{tableName}' now has {table.RowCount} rows.");
+            
         }
 
         public bool TableExists(string tableName)
@@ -159,26 +270,89 @@ namespace KursovaSAAConsole2
             return _tables.Get(tableName) != null;
         }
 
-        private byte[] SerializeTableMetadata(Table table)
+        
+        public void GetRow(string command)
         {
-            var serializer = new TreeStringSerializer();
-            var metadata = new MemoryStream();
-
-            var tableNameBytes = serializer.Serialize(table.TableName);
-            metadata.Write(tableNameBytes, 0, tableNameBytes.Length);
-
-            foreach (var column in table.Columns)
+            try
             {
-                var columnNameBytes = serializer.Serialize(column.Name);
-                var columnTypeBytes = serializer.Serialize(column.Type);
-                var defaultValueBytes = serializer.Serialize(column.DefaultValue ?? "");
+                Console.WriteLine($"Processing GET ROW command: {command}");
 
-                metadata.Write(columnNameBytes, 0, columnNameBytes.Length);
-                metadata.Write(columnTypeBytes, 0, columnTypeBytes.Length);
-                metadata.Write(defaultValueBytes, 0, defaultValueBytes.Length);
+                int getRowStart = CustomIndexOf.IndexOfSubstring(command, "GET ROW");
+                if (getRowStart < 0)
+                {
+                    throw new ArgumentException("Missing 'GET ROW' keyword.");
+                }
+
+                int fromIndex = CustomIndexOf.IndexOfSubstring(command, "FROM");
+                if (fromIndex < 0)
+                {
+                    throw new ArgumentException("Missing 'FROM' keyword.");
+                }
+
+                string rowIdsSection = command.Substring(getRowStart + "GET ROW".Length, fromIndex - getRowStart - "GET ROW".Length).Trim();
+                string tableName = command.Substring(fromIndex + "FROM".Length).Trim();
+
+                var rowIds = CustomSplit.SplitString(rowIdsSection, ',').Select(id => uint.Parse(id.Trim())).ToList();
+
+                var table = _tables.Get(tableName)?.Item2;
+                if (table == null)
+                {
+                    Console.WriteLine($"Error: Table '{tableName}' does not exist.");
+                    return;
+                }
+
+                Console.WriteLine("Id:\t" + string.Join("\t", table.Columns.Select(col => col.Name)));
+
+                foreach (var rowId in rowIds)
+                {
+                    var recordData = _recordStorage.Find(rowId);
+                    if (recordData == null || recordData.Length == 0)
+                    {
+                        Console.WriteLine($"Warning: Row with ID {rowId} not found or is invalid.");
+                        continue;
+                    }
+
+                    var rowValues = ParseRow(recordData, table.Columns);
+
+                    Console.WriteLine($"{rowId}\t" + string.Join("\t", rowValues));
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error while processing GET ROW: {ex.Message}");
+            }
+        }
+        private CustomList<string> ParseRow(byte[] recordData, CustomList<Column> columns)
+        {
+            var rowValues = new CustomList<string>();
+            int offset = 0;
+
+            foreach (var column in columns)
+            {
+                string value;
+
+                if (column.Type == "int")
+                {
+                    value = BitConverter.ToInt32(recordData, offset).ToString();
+                    offset += sizeof(int);
+                }
+                else if (column.Type == "string")
+                {
+                    int stringLength = BitConverter.ToInt32(recordData, offset);
+                    offset += sizeof(int);
+                    value = Encoding.UTF8.GetString(recordData, offset, stringLength);
+                    offset += stringLength;
+                }
+                
+                else
+                {
+                    value = "UnknownType";
+                }
+
+                rowValues.Add(value);
             }
 
-            return metadata.ToArray();
+            return rowValues;
         }
 
         public void DropTable(string command)
@@ -203,7 +377,6 @@ namespace KursovaSAAConsole2
             _tables.Delete(tableName);
             Console.WriteLine($"Table '{tableName}' successfully dropped.");
         }
-
         public void DeleteAllRecordsForTable(string tableName)
         {
             var recordIds = _recordStorage.GetRecordIdsForTable(tableName);

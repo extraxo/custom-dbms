@@ -26,41 +26,35 @@ namespace KursovaSAAConsole2
             var deleted = false;
             var goContinue = false;
 
-            try
+           
+            while (goContinue)
             {
-                while (goContinue)
+              using (var enumerator = (TreeEnumerator<Key, Value>)LargerThan(key).GetEnumerator())
+              {
+                while (true)
                 {
-                    using (var enumerator = (TreeEnumerator<Key, Value>)LargerThan(key).GetEnumerator())
-                    {
-                        while (true)
-                        {
-                            if (false == enumerator.MoveNext())
-                            {
-                                goContinue = false;
-                                break;
-                            }
+                  if (false == enumerator.MoveNext())
+                  {
+                     goContinue = false;
+                     break;
+                  }
 
-                            var entry = enumerator.Current;
+                   var entry = enumerator.Current;
 
-                            if (_nodeManager.KeyComparer.Compare(entry.Item1, key) > 0)
-                            {
-                                goContinue = false;
-                                break;
-                            }
+                  if (_nodeManager.KeyComparer.Compare(entry.Item1, key) > 0)
+                  {
+                      goContinue = false;
+                      break;
+                  }
 
-                            if (valueComparer.Compare(entry.Item2, value) == 0)
-                            {
-                                enumerator.CurrentNode.Remove(enumerator.CurrEntry);
-                                deleted = true;
-                                break;
-                            }
-                        }
-                    }
+                  if (valueComparer.Compare(entry.Item2, value) == 0)
+                  {
+                      enumerator.CurrentNode.Remove(enumerator.CurrEntry);
+                      deleted = true;
+                      break;
+                  }
                 }
-            }
-            catch (EndOfStreamException)
-            {
-
+              }
             }
             _nodeManager.SaveChanges();
             return deleted;

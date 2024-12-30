@@ -17,7 +17,7 @@ namespace KursovaSAAConsole2
                     return i;
                 }
             }
-            return -1; // Not found
+            return -1;
         }
 
         public static int IndexOfSubstring(string input, string target)
@@ -43,5 +43,21 @@ namespace KursovaSAAConsole2
             return -1;
         }
 
+        public static string IndexOfSubstring(string input, int startIndex, int length)
+        {
+            if (startIndex < 0 || startIndex + length > input.Length)
+            {
+                throw new ArgumentOutOfRangeException("Invalid start index or length.");
+            }
+
+            char[] result = new char[length];
+            for (int i = 0; i < length; i++)
+            {
+                result[i] = input[startIndex + i];
+            }
+
+            return new string(result);
+        }
+       
     }
 }

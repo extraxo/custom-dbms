@@ -26,96 +26,58 @@ namespace KursovaSAAConsole2
 
         public virtual byte[] Find(uint recordId)
         {
-            try
+            using (var block = _blockStorage.Find(recordId))
             {
-                // Attempt to find the initial block
-                using (var block = _blockStorage.Find(recordId))
-                {
-                    if (block == null)
-                    {
-                        return null;
-                    }
+              if (block == null || block.GetHeader(_isDeleted) == 1L)
+              {
+                 return null; 
+              }
 
-                    // Check if the block is marked as deleted
-                    if (1L == block.GetHeader(_isDeleted))
-                    {
-                        Console.WriteLine($"Warning: Block with Record ID {recordId} is marked as deleted.");
-                        return null;
-                    }
+              if (block.GetHeader(_previousBlockId) != 0L)
+              {
+                 return null; 
+              }
 
-                    // Check if this block is a child block
-                    if (0L != block.GetHeader(_previousBlockId))
-                    {
-                        Console.WriteLine($"Error: Block with Record ID {recordId} is a child block.");
-                        return null;
-                    }
+              var totalRecordSize = block.GetHeader(_recordLength);
+              if (totalRecordSize > _maxRecordSize)
+              {
+                 throw new NotSupportedException($"Unexpected record length: {totalRecordSize}");
+              }
 
-                    // Ensure record size is valid
-                    var totalRecordSize = block.GetHeader(_recordLength);
-                    if (totalRecordSize > _maxRecordSize)
-                    {
-                        throw new NotSupportedException("Unexpected record length: " + totalRecordSize);
-                    }
+              var data = new byte[totalRecordSize];
+              var bytesRead = 0;
 
-                    var data = new byte[totalRecordSize];
-                    var bytesRead = 0;
+              IBlock currentBlock = block;
+              while (true)
+              {
+                 uint nextBlockId;
 
-                    // Initialize currentBlock
-                    IBlock currentBlock = block;
-                    while (true)
-                    {
-                        uint nextBlockId;
+                 using (currentBlock)
+                 {
+                   var contentLength = currentBlock.GetHeader(_contentLength);
+                   if (contentLength > _blockStorage.BlockContentSize)
+                   {
+                     throw new InvalidDataException($"Unexpected block content length: {contentLength}");
+                   }
 
-                        using (currentBlock)
-                        {
-                            var thisBlockContentLength = currentBlock.GetHeader(_contentLength);
-                            if (thisBlockContentLength > _blockStorage.BlockContentSize)
-                            {
-                                throw new InvalidDataException("Unexpected block content length: " + thisBlockContentLength);
-                            }
+                   currentBlock.Read(data, bytesRead, 0, (int)contentLength);
+                   bytesRead += (int)contentLength;
 
-                            // Read content of the current block
-                            currentBlock.Read(
-                                dst: data,
-                                dstOffset: bytesRead,
-                                srcOffset: 0,
-                                count: (int)thisBlockContentLength
-                            );
+                   nextBlockId = (uint)currentBlock.GetHeader(_nextBlockId);
+                   if (nextBlockId == 0)
+                   {
+                     return data; 
+                   }
+                 }
 
-                            // Update number of bytes read
-                            bytesRead += (int)thisBlockContentLength;
-
-                            // Retrieve next block ID
-                            nextBlockId = (uint)currentBlock.GetHeader(_nextBlockId);
-                        }
-
-                        // If there's no next block, break the loop
-                        if (nextBlockId == 0)
-                        {
-                            break;
-                        }
-
-                        // Find the next block
-                        currentBlock = _blockStorage.Find(nextBlockId);
-                        if (currentBlock == null)
-                        {
-                            throw new InvalidDataException($"Next block not found by ID: {nextBlockId}");
-                        }
-                    }
-
-                    return data;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in Find: {ex.Message}");
-                throw; // Rethrow exception for higher-level handling
+                 currentBlock = _blockStorage.Find(nextBlockId);
+                 if (currentBlock == null)
+                 {
+                    throw new InvalidDataException($"Next block not found by ID: {nextBlockId}");
+                 }
+              }
             }
         }
-
-
-
-
 
         public virtual uint Create(Func<uint, byte[]> dataCreator)
         {
@@ -258,43 +220,22 @@ namespace KursovaSAAConsole2
                 }
             }
 
-        } 
+        }
 
         public virtual void Delete(uint recordId)
         {
-            using (var block = _blockStorage.Find(recordId))
+            var blocks = FindBlocks(recordId);
+            foreach (var block in blocks)
             {
-                IBlock _currentBlock = block;
-                while (true)
+                using (block)
                 {
-                    IBlock _nextBlock = null;
-
-                    using (_currentBlock)
-                    {
-                        FreeBlock(_currentBlock.Id);
-                        _currentBlock.SetHeader(_isDeleted, 1L);
-
-                        var nextBlockId = (int)_currentBlock.GetHeader(_nextBlockId);
-                        if(nextBlockId < 0)
-                        {
-                            break;
-                        }
-                        else
-                        {
-                            _nextBlock = _blockStorage.Find((uint)nextBlockId);
-                            if(_currentBlock == null)
-                            {
-                                throw new InvalidDataException("Block not found by id: " + nextBlockId);
-                            }
-                        }
-                    }
-                    if(_nextBlock != null)
-                    {
-                        _currentBlock = _nextBlock;
-                    }
+                    block.SetHeader(_isDeleted, 1L); // Mark as deleted
                 }
             }
+            Console.WriteLine($"Record ID {recordId} deleted successfully.");
         }
+
+
 
         CustomList<IBlock> FindBlocks(uint recordId)
         {
@@ -479,7 +420,7 @@ namespace KursovaSAAConsole2
             var matchingRecordIds = new CustomList<uint>();
 
             uint currentRecordId = 1;
-            uint maxRecordId = GetMaxRecordId(); 
+            uint maxRecordId = GetMaxRecordId();
 
             while (currentRecordId <= maxRecordId)
             {
@@ -518,7 +459,7 @@ namespace KursovaSAAConsole2
         public uint GetMaxRecordId()
         {
             uint maxRecordId = 0;
-            uint currentRecordId = 1; 
+            uint currentRecordId = 1;
 
             while (true)
             {
@@ -531,7 +472,7 @@ namespace KursovaSAAConsole2
                     }
                     else
                     {
-                        
+
                         break;
                     }
                 }
@@ -551,6 +492,7 @@ namespace KursovaSAAConsole2
 
             return maxRecordId;
         }
+
 
 
         void SpaceTracker(out IBlock lastBlock, out IBlock secondLastBlock)
