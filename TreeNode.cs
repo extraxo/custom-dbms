@@ -210,8 +210,6 @@ namespace KursovaSAAConsole2
             }
 
         }
-
-
         public int BinarySearchEntriesForKey(Key key)
         {
 
@@ -257,8 +255,6 @@ namespace KursovaSAAConsole2
                 return $"[Node: Id={Id}, ParentId={ParentId}, Error: {ex.Message}]";
             }
         }
-
-
         void Rebalance()
         {
             var indexInParent = IndexInParent();
