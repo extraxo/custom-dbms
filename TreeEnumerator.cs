@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace KursovaSAAConsole2
 {
-    public class TreeEnumerator<Key, Value> : IEnumerator<Tuple<Key, Value>>
+    public class TreeEnumerator<Key, Value> : IEnumerator<CustomTuple<Key, Value>>
     {
         readonly TreeManager<Key, Value> _manager;
         readonly TreeTraverseDirection _direction;
@@ -16,7 +16,7 @@ namespace KursovaSAAConsole2
         int _currEntry = 0;
         TreeNode<Key, Value> _currNode;
 
-        Tuple<Key, Value> _currTuple;
+        CustomTuple<Key, Value> _currTuple;
 
         public TreeNode<Key, Value> CurrentNode
         {
@@ -42,7 +42,7 @@ namespace KursovaSAAConsole2
             }
         }
 
-        public Tuple<Key, Value> Current
+        public CustomTuple<Key, Value> Current
         {
             get
             {

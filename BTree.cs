@@ -76,7 +76,6 @@ namespace KursovaSAAConsole2
             }
             return false;
         }
-
         public void Insert(Key key, Value value)
         {
             int insertionIndex = 0;
@@ -97,9 +96,7 @@ namespace KursovaSAAConsole2
 
             _nodeManager.SaveChanges();
         }
-
-
-        public Tuple<Key, Value> Get(Key key)
+        public CustomTuple<Key, Value> Get(Key key)
         {
 
             int insertionIndex = 0;
@@ -116,8 +113,7 @@ namespace KursovaSAAConsole2
 
             return null;
         }
-
-        public IEnumerable<Tuple<Key, Value>> LargerOrEqual(Key key)
+        public IEnumerable<CustomTuple<Key, Value>> LargerOrEqual(Key key)
         {
             var startIterationIndex = 0;
             var node = FindNodeForIteration(key, _nodeManager.Root, true, ref startIterationIndex);
@@ -125,22 +121,21 @@ namespace KursovaSAAConsole2
             return new TreeTraverser<Key, Value>(_nodeManager, node, (startIterationIndex >= 0 ? startIterationIndex : ~startIterationIndex) - 1, TreeTraverseDirection.Ascending);
 
         }
-
-        public IEnumerable<Tuple<Key, Value>> LargerThan(Key key)
+        public IEnumerable<CustomTuple<Key, Value>> LargerThan(Key key)
         {
             var startIterationIndex = 0;
             var node = FindNodeForIteration(key, _nodeManager.Root, false, ref startIterationIndex);
 
             return new TreeTraverser<Key, Value>(_nodeManager, node, (startIterationIndex >= 0 ? startIterationIndex : (~startIterationIndex - 1)), TreeTraverseDirection.Ascending);
         }
-        public IEnumerable<Tuple<Key, Value>> LessOrEqual(Key key)
+        public IEnumerable<CustomTuple<Key, Value>> LessOrEqual(Key key)
         {
             var startIterationIndex = 0;
             var node = FindNodeForIteration(key, _nodeManager.Root, false, ref startIterationIndex);
 
             return new TreeTraverser<Key, Value>(_nodeManager, node, startIterationIndex >= 0 ? (startIterationIndex + 1) : ~startIterationIndex, TreeTraverseDirection.Descending);
         }
-        public IEnumerable<Tuple<Key, Value>> LessThan(Key key)
+        public IEnumerable<CustomTuple<Key, Value>> LessThan(Key key)
         {
             var startIterationIndex = 0;
             var node = FindNodeForIteration(key, _nodeManager.Root, true, ref startIterationIndex);
@@ -224,5 +219,4 @@ namespace KursovaSAAConsole2
         }
 
     }
-
 }

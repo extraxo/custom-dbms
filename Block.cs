@@ -102,15 +102,7 @@
             }
 
         }
-        public override string ToString()
-        {
-            return string.Format("[Block: Id = {0}, ContentLength = {1}, Prev = {2}, Next = {3}]"
-                , Id
-                , GetHeader(2)
-                , GetHeader(3)
-                , GetHeader(0));
-        }
-
+        
         protected virtual void OnDisposed(EventArgs e)
         {
             if (Disposed != null)
@@ -140,11 +132,6 @@
                 }
                 OnDisposed(EventArgs.Empty);
             }
-        }
-
-        ~Block()
-        {
-            Dispose(false);
         }
     }
 }

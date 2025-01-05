@@ -11,18 +11,18 @@ namespace KursovaSAAConsole2
 
             try
             {
-                Console.WriteLine("Enter commands (e.g., CREATE TABLE, DROP TABLE, TABLEINFO, INSERT INTO, GET ROW). Type EXIT to stop:");
+                Console.WriteLine("Enter commands (e.g., CREATE TABLE, DROP TABLE, TABLEINFO, INSERT INTO, GET ROW, DELETE FROM). Type EXIT to stop:");
                 while (true)
                 {
                     Console.Write(">> ");
-                    string command = Console.ReadLine()?.Trim();
+                    string command = CustomTrimFunc.CustomTrim(Console.ReadLine());
                     if (string.IsNullOrEmpty(command))
                     {
                         Console.WriteLine("No command entered. Please try again.");
                         continue;
                     }
 
-                    if (command.Equals("EXIT", StringComparison.OrdinalIgnoreCase))
+                    if (CustomIndexOf.EqualsIgnoreCase(command, "EXIT"))
                     {
                         Console.WriteLine("Exiting the program.");
                         break;
@@ -30,28 +30,32 @@ namespace KursovaSAAConsole2
 
                     try
                     {
-                        if (command.StartsWith("CREATE TABLE", StringComparison.OrdinalIgnoreCase))
+                        if (CustomIndexOf.StartsWith(command, "CREATE TABLE"))
                         {
                             db.CreateTable(command);
                             Console.WriteLine("Table created successfully!");
                         }
-                        else if (command.StartsWith("DROP TABLE", StringComparison.OrdinalIgnoreCase))
+                        else if (CustomIndexOf.StartsWith(command, "DROP TABLE"))
                         {
                             db.DropTable(command);
                         }
-                        else if (command.StartsWith("TABLEINFO", StringComparison.OrdinalIgnoreCase))
+                        else if (CustomIndexOf.StartsWith(command, "TABLEINFO"))
                         {
-                            string tableName = command.Substring("TABLEINFO".Length).Trim();
+                            string tableName = CustomTrimFunc.CustomTrim(CustomIndexOf.IndexOfSubstring(command, "TABLEINFO".Length));
                             db.TableInfo(tableName);
                         }
-                        else if (command.StartsWith("INSERT INTO", StringComparison.OrdinalIgnoreCase))
+                        else if (CustomIndexOf.StartsWith(command, "INSERT INTO"))
                         {
                             db.InsertInto(command);
                             Console.WriteLine("Record inserted successfully!");
                         }
-                        else if (command.StartsWith("GET ROW", StringComparison.OrdinalIgnoreCase))
+                        else if (CustomIndexOf.StartsWith(command, "GET ROW"))
                         {
                             db.GetRow(command);
+                        }
+                        else if(CustomIndexOf.StartsWith(command, "DELETE FROM"))
+                        {
+                            db.DeleteFrom(command);
                         }
                         else
                         {

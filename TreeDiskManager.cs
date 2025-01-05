@@ -28,7 +28,7 @@ namespace KursovaSAAConsole2
             }
         }
 
-        public IComparer<Tuple<Key, Value>> EntryComparer
+        public IComparer<CustomTuple<Key, Value>> EntryComparer
         {
             get;
             private set;
@@ -60,7 +60,7 @@ namespace KursovaSAAConsole2
             _recordStorage = recordStorage;
             _serializer = new TreeDiskSerializer<Key, Value>(this, keySerializer, valueSerializer);
             this.KeyComparer = keyComparer;
-            EntryComparer = Comparer<Tuple<Key, Value>>.Create((a, b) =>
+            EntryComparer = Comparer<CustomTuple<Key, Value>>.Create((a, b) =>
             {
                 return KeyComparer.Compare(a.Item1, b.Item1);
             });
@@ -76,7 +76,7 @@ namespace KursovaSAAConsole2
             }
         }
 
-        public TreeNode<Key, Value> Create(IEnumerable<Tuple<Key, Value>> items, IEnumerable<uint> childrenIds)
+        public TreeNode<Key, Value> Create(IEnumerable<CustomTuple<Key, Value>> items, IEnumerable<uint> childrenIds)
         {
             TreeNode<Key, Value> node = null;
 
@@ -121,9 +121,9 @@ namespace KursovaSAAConsole2
 
         public TreeNode<Key, Value> CreateNewRoot(Key key, Value value, uint leftNodeId, uint rightNodeId)
         {
-            var node = Create(new Tuple<Key, Value>[]
+            var node = Create(new CustomTuple<Key, Value>[]
             {
-                new Tuple<Key,Value>(key, value)
+                new CustomTuple<Key,Value>(key, value)
             }, new uint[]
             {
                 leftNodeId, rightNodeId
@@ -190,7 +190,7 @@ namespace KursovaSAAConsole2
             if (_cleanUpCounter++ >= 1000)
             {
                 _cleanUpCounter = 0;
-                var tobeDeleted = new List<uint>();
+                var tobeDeleted = new CustomList<uint>();
                 foreach (var kv in this.nodeWeakRefs)
                 {
                     TreeNode<Key, Value> target;

@@ -18,7 +18,7 @@ namespace KursovaSAAConsole2
             get; 
         }
 
-        IComparer<Tuple<Key,Value>> EntryComparer
+        IComparer<CustomTuple<Key,Value>> EntryComparer
         {
             get;
         }
@@ -27,7 +27,7 @@ namespace KursovaSAAConsole2
         {
             get;
         }
-        TreeNode<Key, Value> Create(IEnumerable<Tuple<Key, Value>> entries, IEnumerable<uint> childrenIds);
+        TreeNode<Key, Value> Create(IEnumerable<CustomTuple<Key, Value>> entries, IEnumerable<uint> childrenIds);
         TreeNode<Key, Value> Find(uint id);
 
         TreeNode<Key, Value> CreateNewRoot(Key key, Value value, uint leftNodeId, uint rightNodeId);

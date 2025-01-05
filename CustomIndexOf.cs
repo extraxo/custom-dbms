@@ -20,6 +20,18 @@ namespace KursovaSAAConsole2
             return -1;
         }
 
+        public static int IndexOf(string source, char target, int startIndex)
+        {
+            for (int i = startIndex; i < source.Length; i++)
+            {
+                if (source[i] == target)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
         public static int IndexOfSubstring(string input, string target)
         {
             int targetLength = target.Length;
@@ -58,6 +70,37 @@ namespace KursovaSAAConsole2
 
             return new string(result);
         }
-       
+
+        public static string IndexOfSubstring(string input, int startIndex)
+        {
+            return IndexOfSubstring(input, startIndex, input.Length - startIndex);
+        }
+
+        public static bool StartsWith(string source, string prefix)
+        {
+            if (prefix.Length > source.Length)
+                return false;
+
+            for (int i = 0; i < prefix.Length; i++)
+            {
+                if (source[i] != prefix[i])
+                    return false;
+            }
+
+            return true;
+        }
+        public static bool EqualsIgnoreCase(string str1, string str2)
+        {
+            if (str1.Length != str2.Length)
+                return false;
+
+            for (int i = 0; i < str1.Length; i++)
+            {
+                if (char.ToLowerInvariant(str1[i]) != char.ToLowerInvariant(str2[i]))
+                    return false;
+            }
+
+            return true;
+        }
     }
 }

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace KursovaSAAConsole2
 {
-    internal class CustomDictionary<TKey, TValue> : IDictionary<TKey, TValue>
+    public class CustomDictionary<TKey, TValue> : IDictionary<TKey, TValue>
     {
         private readonly EqualityComparer<TKey> _equalityComparer = EqualityComparer<TKey>.Default;
         private CustomList<KeyValuePair<TKey, TValue>>[] _items;

@@ -11,15 +11,15 @@ namespace KursovaSAAConsole2
     {
         void Insert(Key key, Value value);
 
-        Tuple<Key, Value> Get(Key key);
+        CustomTuple<Key, Value> Get(Key key);
 
-        IEnumerable<Tuple<Key,Value>> LargerOrEqual(Key key);
+        IEnumerable<CustomTuple<Key,Value>> LargerOrEqual(Key key);
 
-        IEnumerable<Tuple<Key,Value>> LargerThan(Key key);
+        IEnumerable<CustomTuple<Key,Value>> LargerThan(Key key);
 
-        IEnumerable<Tuple<Key,Value>> LessOrEqual(Key key);
+        IEnumerable<CustomTuple<Key,Value>> LessOrEqual(Key key);
 
-        IEnumerable<Tuple<Key,Value>> LessThan(Key key);
+        IEnumerable<CustomTuple<Key,Value>> LessThan(Key key);
 
         bool Delete(Key key, Value value, IComparer<Value> valueComparer = null);
 

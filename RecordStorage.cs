@@ -229,13 +229,11 @@ namespace KursovaSAAConsole2
             {
                 using (block)
                 {
-                    block.SetHeader(_isDeleted, 1L); // Mark as deleted
+                    block.SetHeader(_isDeleted, 1L); 
                 }
             }
             Console.WriteLine($"Record ID {recordId} deleted successfully.");
         }
-
-
 
         CustomList<IBlock> FindBlocks(uint recordId)
         {
@@ -313,7 +311,6 @@ namespace KursovaSAAConsole2
             }
             return _newBlock;
         }
-
         bool FindFreeBlock(out uint _blockId)
         {
             _blockId = 0;
@@ -352,8 +349,6 @@ namespace KursovaSAAConsole2
                 }
             }
         }
-
-
         uint ReadUint32FromContent(IBlock block)
         {
             var _buffer = new byte[4];
@@ -454,8 +449,6 @@ namespace KursovaSAAConsole2
 
             return matchingRecordIds;
         }
-
-
         public uint GetMaxRecordId()
         {
             uint maxRecordId = 0;
@@ -492,9 +485,6 @@ namespace KursovaSAAConsole2
 
             return maxRecordId;
         }
-
-
-
         void SpaceTracker(out IBlock lastBlock, out IBlock secondLastBlock)
         {
             lastBlock = null;
