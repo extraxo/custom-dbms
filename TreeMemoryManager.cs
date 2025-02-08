@@ -13,11 +13,11 @@ namespace KursovaSAAConsole2
         readonly CustomDictionary<uint,TreeNode<Key,Value>> _nodes = new CustomDictionary<uint, TreeNode<Key, Value>>();
         readonly ushort _minEntriesCountPerNode;
         readonly IComparer<Key> _keyComparer;
-        readonly IComparer<Tuple<Key, Value>> _entryComparer;
+        readonly IComparer<CustomTuple<Key, Value>> _entryComparer;
         int idCounter = 1;
         TreeNode<Key, Value> _root;
 
-        public IComparer<Tuple<Key,Value>> EntryComparer
+        public IComparer<CustomTuple<Key,Value>> EntryComparer
         {
             get
             {
@@ -49,7 +49,7 @@ namespace KursovaSAAConsole2
         public TreeMemoryManager(ushort minEntriesCountPerNode, IComparer<Key> keyComparer)
         {
             _keyComparer = keyComparer;
-            _entryComparer = Comparer<Tuple<Key, Value>>.Create((t1, t2) =>
+            _entryComparer = Comparer<CustomTuple<Key, Value>>.Create((t1, t2) =>
             {
                 if (t1 == null && t2 == null) return 0;
                 if (t1 == null) return -1;
@@ -61,7 +61,7 @@ namespace KursovaSAAConsole2
             _root = Create(null, null);
         }
 
-        public TreeNode<Key,Value> Create(IEnumerable<Tuple<Key,Value>> entries, IEnumerable<uint> childrenIds)
+        public TreeNode<Key,Value> Create(IEnumerable<CustomTuple<Key,Value>> entries, IEnumerable<uint> childrenIds)
         {
             var newNode = new TreeNode<Key, Value>(this, (uint)(idCounter++), 0, entries, childrenIds);
             _nodes[newNode.Id]= newNode;
@@ -74,9 +74,9 @@ namespace KursovaSAAConsole2
 
         public TreeNode<Key, Value> CreateNewRoot(Key key, Value value, uint leftNodeId, uint rightNodeId)
         {
-            var newNode = Create(new Tuple<Key, Value>[]
+            var newNode = Create(new CustomTuple<Key, Value>[]
             {
-                new Tuple<Key,Value>(key, value) },new uint[] {leftNodeId, rightNodeId});
+                new CustomTuple<Key,Value>(key, value) },new uint[] {leftNodeId, rightNodeId});
 
             _root = newNode;
             return newNode;

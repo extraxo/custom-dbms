@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace KursovaSAAConsole2
 {
-    public class TreeTraverser<Key,Value> : IEnumerable<Tuple<Key,Value>>
+    public class TreeTraverser<Key,Value> : IEnumerable<CustomTuple<Key,Value>>
     {
         readonly TreeNode<Key, Value> _node;
         readonly int _index;
@@ -22,13 +22,13 @@ namespace KursovaSAAConsole2
             _direction = direction;
         }
 
-        IEnumerator<Tuple<Key, Value>> IEnumerable<Tuple<Key, Value>>.GetEnumerator()
+        IEnumerator<CustomTuple<Key, Value>> IEnumerable<CustomTuple<Key, Value>>.GetEnumerator()
         {
             return new TreeEnumerator<Key,Value>(_manager, _node, _index,_direction);
         }
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return ((IEnumerable<Tuple<Key, Value>>)this).GetEnumerator();
+            return ((IEnumerable<CustomTuple<Key, Value>>)this).GetEnumerator();
         }
     }
 }

@@ -13,7 +13,7 @@ namespace KursovaSAAConsole2
         protected uint _parentId;
         protected readonly TreeManager<Key, Value> _nodeManager;
         private readonly CustomList<uint> _childrenIds;
-        private readonly CustomList<Tuple<Key, Value>> _entries;
+        private readonly CustomList<CustomTuple<Key, Value>> _entries;
 
         public Key MaxKey => _entries[_entries.Count - 1].Item1;
         public Key MinKey => _entries[0].Item1;
@@ -24,16 +24,16 @@ namespace KursovaSAAConsole2
         public int ChildrenNodeCount => _childrenIds.Count;
         public uint ParentId => _parentId;
         public uint[] ChildrenIds => _childrenIds.ToArray();
-        public Tuple<Key, Value>[] Entries => _entries.ToArray();
+        public CustomTuple<Key, Value>[] Entries => _entries.ToArray();
         public uint Id => _id;
 
 
-        public TreeNode(TreeManager<Key, Value> nodeManager, uint id, uint parentId, IEnumerable<Tuple<Key, Value>> entries = null, IEnumerable<uint> childrenIds = null)
+        public TreeNode(TreeManager<Key, Value> nodeManager, uint id, uint parentId, IEnumerable<CustomTuple<Key, Value>> entries = null, IEnumerable<uint> childrenIds = null)
         {
             _id = id;
             _parentId = parentId;
             _nodeManager = nodeManager;
-            _entries = new CustomList<Tuple<Key, Value>>(_nodeManager.MinEntriesPerNode * 2);
+            _entries = new CustomList<CustomTuple<Key, Value>>(_nodeManager.MinEntriesPerNode * 2);
 
             if (entries != null)
             {
@@ -128,18 +128,12 @@ namespace KursovaSAAConsole2
 
         public void InsertAsLeaf(Key key, Value value, int insertPosition)
         {
-            if (key == null || value == null)
-            {
-                throw new ArgumentNullException($"Key or value is null during insertion in TreeNode {Id}");
-            }
-
-            var entry = new Tuple<Key, Value>(key, value);
+            
+            var entry = new CustomTuple<Key, Value>(key, value);
             _entries.Insert(insertPosition, entry);
             _nodeManager.MarkAsChanged(this);
 
         }
-
-
 
         public void InsertAsParent(Key key, Value value, uint leftReference, uint rightReference, out int insertPosition)
         {
@@ -151,7 +145,7 @@ namespace KursovaSAAConsole2
                 insertPosition = ~insertPosition;
             }
 
-            _entries.Insert(insertPosition, new Tuple<Key, Value>(key, value));
+            _entries.Insert(insertPosition, new CustomTuple<Key, Value>(key, value));
 
             _childrenIds.Insert(insertPosition, leftReference);
             _childrenIds[insertPosition + 1] = rightReference;
@@ -164,7 +158,7 @@ namespace KursovaSAAConsole2
             int half = _nodeManager.MinEntriesPerNode;
             var middleEntry = _entries[half];
 
-            var rightEntries = new Tuple<Key, Value>[half];
+            var rightEntries = new CustomTuple<Key, Value>[half];
             uint[] rightChildren = null;
 
             _entries.CopyTo(half + 1, rightEntries, 0, rightEntries.Length);
@@ -213,47 +207,27 @@ namespace KursovaSAAConsole2
         public int BinarySearchEntriesForKey(Key key)
         {
 
-            return _entries.BinarySearch(new Tuple<Key, Value>(key, default), _nodeManager.EntryComparer);
+            return _entries.BinarySearch(new CustomTuple<Key, Value>(key, default), _nodeManager.EntryComparer);
         }
 
         public int BinarySearchEntriesForKey(Key key, bool firstOccurence)
         {
             if (firstOccurence)
             {
-                return _entries.BinarySearchFirst(new Tuple<Key, Value>(key, default(Value)), _nodeManager.EntryComparer);
+                return _entries.BinarySearchFirst(new CustomTuple<Key, Value>(key, default(Value)), _nodeManager.EntryComparer);
             }
             else
             {
-                return _entries.BinarySearchLast(new Tuple<Key, Value>(key, default(Value)), _nodeManager.EntryComparer);
+                return _entries.BinarySearchLast(new CustomTuple<Key, Value>(key, default(Value)), _nodeManager.EntryComparer);
             }
         }
         public TreeNode<Key, Value> GetChildNode(int atIndex)
         {
             return _nodeManager.Find(_childrenIds[atIndex]);
         }
-        public Tuple<Key, Value> GetEntry(int atIndex)
+        public CustomTuple<Key, Value> GetEntry(int atIndex)
         {
             return _entries[atIndex];
-        }
-        public bool EntryExists(int atIndex)
-        {
-            return atIndex < _entries.Count;
-        }
-        public override string ToString()
-        {
-            try
-            {
-                var entryStrings = _entries.Select(entry => entry?.Item1?.ToString() ?? "null").ToArray();
-                var childrenStrings = _childrenIds.Select(id => id.ToString()).ToArray();
-
-                return IsLeaf
-                    ? $"[Node: Id={Id}, ParentId={ParentId}, Entries=({string.Join(", ", entryStrings)})]"
-                    : $"[Node: Id={Id}, ParentId={ParentId}, Entries=({string.Join(", ", entryStrings)}), Children=({string.Join(", ", childrenStrings)})]";
-            }
-            catch (Exception ex)
-            {
-                return $"[Node: Id={Id}, ParentId={ParentId}, Error: {ex.Message}]";
-            }
         }
         void Rebalance()
         {

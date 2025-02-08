@@ -92,7 +92,7 @@ namespace KursovaSAAConsole2
 
             var childrenCount = BufferReader.ReadBufferUInt32(buffer, 8);
 
-            var entries = new Tuple<Key, Value>[entriesCount];
+            var entries = new CustomTuple<Key, Value>[entriesCount];
             for (var i = 0; i < entriesCount; i++)
             {
                 var key = _keySerializer.Deserialize(buffer, 12 + i * entrySize, _keySerializer.Length);
@@ -107,7 +107,7 @@ namespace KursovaSAAConsole2
                     Console.WriteLine($"Deserialized null value at index {i} in FixedLengthDeserialize.");
                 }
 
-                entries[i] = new Tuple<Key, Value>(key, value);
+                entries[i] = new CustomTuple<Key, Value>(key, value);
             }
 
 
@@ -128,7 +128,7 @@ namespace KursovaSAAConsole2
 
             var childrenCount = BufferReader.ReadBufferUInt32(buffer, 8);
 
-            var entries = new Tuple<Key, Value>[entriesCount];
+            var entries = new CustomTuple<Key, Value>[entriesCount];
             var p = 12;
             for (var i = 0; i < entriesCount; i++)
             {
@@ -145,7 +145,7 @@ namespace KursovaSAAConsole2
                     Console.WriteLine($"Deserialized null value at index {i} in VariableKeyLengthDeserialize.");
                 }
 
-                entries[i] = new Tuple<Key, Value>(key, value);
+                entries[i] = new CustomTuple<Key, Value>(key, value);
 
                 p += 4 + keyLength + _valueSerializer.Length;
             }

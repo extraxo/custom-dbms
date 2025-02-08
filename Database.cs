@@ -1,8 +1,5 @@
-﻿using System.Text;
-
-namespace KursovaSAAConsole2
+﻿namespace KursovaSAAConsole2
 {
-
     public class Column
     {
         public string Name { get; set; }
@@ -47,7 +44,7 @@ namespace KursovaSAAConsole2
             {
                 columnData += $" default {column.DefaultValue}";
             }
-            _recordStorage.Create(System.Text.Encoding.UTF8.GetBytes(columnData));
+            _recordStorage.Create(Encoding.UTF8.GetBytes(columnData));
         }
 
         public void RowCountFunc()
@@ -63,6 +60,10 @@ namespace KursovaSAAConsole2
         private BTree<string, Table> _tables;
         private readonly Stream _mainDatabase;
         private readonly RecordStorage _recordStorage;
+        private TreeManager<string, uint> _indexTreeManager;
+        private CustomDictionary<string, BTree<string, uint>> _indexStorage;
+
+
         public Database(string database)
         {
             _treeManager = new TreeMemoryManager<string, Table>(_minEntriesCountPerNode, _keyComparer);
@@ -71,13 +72,16 @@ namespace KursovaSAAConsole2
 
             _mainDatabase = new FileStream(database, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 4096);
 
+            _indexTreeManager = new TreeMemoryManager<string, uint>(_minEntriesCountPerNode, Comparer<string>.Default);
+            _indexStorage = new CustomDictionary<string, BTree<string, uint>>();
+
+
             var blockStorage = new BlockStorage(_mainDatabase, 4096, 48);
             _recordStorage = new RecordStorage(blockStorage);
         }
 
         public void CreateTable(string command)
         {
-
             int createTableStart = CustomIndexOf.IndexOfSubstring(command, "CREATE TABLE");
             if (createTableStart < 0)
             {
@@ -91,25 +95,24 @@ namespace KursovaSAAConsole2
                 throw new ArgumentException("Invalid table name syntax.");
             }
 
-            string tableName = command.Substring(tableNameStart, tableNameEnd - tableNameStart).Trim();
+            string tableName = CustomTrimFunc.CustomTrim(CustomIndexOf.IndexOfSubstring(command,tableNameStart, tableNameEnd - tableNameStart));
 
-            int columnSectionStart = CustomIndexOf.IndexOf(command, '(') + 1;
+            int columnSectionStart = tableNameEnd + 1;  
 
-            int columnSectionEnd = CustomIndexOf.IndexOf(command, '(');
-
+            int columnSectionEnd = CustomIndexOf.IndexOf(command, ')');
             if (columnSectionStart < 0 || columnSectionEnd < 0 || columnSectionEnd <= columnSectionStart)
             {
                 throw new ArgumentException("Invalid column section syntax.");
             }
 
-            var columnSection = command.Substring(columnSectionStart, columnSectionEnd - columnSectionStart);
-            var columnDefinitions = CustomSplit.SplitString(columnSection.Trim(), ',');
+            var columnSection = CustomIndexOf.IndexOfSubstring(command,columnSectionStart, columnSectionEnd - columnSectionStart);
+            var columnDefinitions = CustomSplit.SplitString(columnSection, ',');
 
             var columns = new CustomList<Column>();
 
             foreach (var columnDefinition in columnDefinitions)
             {
-                var columnParts = CustomSplit.SplitString(columnDefinition.Trim(), ':');
+                var columnParts = CustomSplit.SplitString(CustomTrimFunc.CustomTrim(columnDefinition), ':');
 
                 if (columnParts.Count < 2)
                 {
@@ -118,7 +121,7 @@ namespace KursovaSAAConsole2
 
                 var columnName = columnParts[0];
                 var columnType = columnParts[1];
-                var defaultValue = columnParts.Count > 3 && columnParts[2].ToLower() == "default" ? columnParts[3].Trim() : null;
+                var defaultValue = columnParts.Count > 3 && columnParts[2].ToLower() == "default" ? CustomTrimFunc.CustomTrim(columnParts[3]) : null;
 
                 columns.Add(new Column(columnName, columnType, defaultValue));
             }
@@ -136,7 +139,6 @@ namespace KursovaSAAConsole2
 
             _tables.Insert(tableName, newTable);
         }
-
 
         public Table GetTable(string tableName)
         {
@@ -181,88 +183,105 @@ namespace KursovaSAAConsole2
         }
         public void InsertInto(string command)
         {
-            
             Console.WriteLine($"Processing INSERT INTO command: {command}");
 
             int insertStart = CustomIndexOf.IndexOfSubstring(command, "INSERT INTO");
             if (insertStart < 0)
             {
-               throw new ArgumentException("Missing 'INSERT INTO' keyword.");
+                throw new ArgumentException("Missing 'INSERT INTO' keyword.");
             }
 
             int tableNameStart = insertStart + "INSERT INTO".Length;
             int tableNameEnd = CustomIndexOf.IndexOfSubstring(command, "(");
             if (tableNameEnd < 0 || tableNameStart >= tableNameEnd)
             {
-               throw new ArgumentException("Invalid table name syntax.");
+                throw new ArgumentException("Invalid table name syntax.");
             }
 
-            string tableName = command.Substring(tableNameStart, tableNameEnd - tableNameStart).Trim();
+            string tableName = CustomTrimFunc.CustomTrim(CustomIndexOf.IndexOfSubstring(command, tableNameStart, tableNameEnd - tableNameStart));
+
             var table = GetTable(tableName);
 
             if (table == null)
             {
-               throw new InvalidOperationException($"Table '{tableName}' does not exist.");
+                throw new InvalidOperationException($"Table '{tableName}' does not exist.");
             }
 
             int columnsStart = CustomIndexOf.IndexOf(command, '(') + 1;
-            int columnsEnd = CustomIndexOf.IndexOf(command,')');
-            string columnsSection = command.Substring(columnsStart, columnsEnd - columnsStart).Trim();
+            int columnsEnd = CustomIndexOf.IndexOf(command, ')');
+            if (columnsStart >= columnsEnd)
+            {
+                throw new ArgumentException("Invalid column section syntax.");
+            }
+            string columnsSection = CustomTrimFunc.CustomTrim(CustomIndexOf.IndexOfSubstring(command,columnsStart, columnsEnd - columnsStart));
+
             var columnNames = CustomSplit.SplitString(columnsSection, ',');
 
             int valuesStart = CustomIndexOf.IndexOfSubstring(command, "VALUES (") + "VALUES (".Length;
-            int valuesEnd = CustomIndexOf.IndexOf(command,'(');
-            string valuesSection = command.Substring(valuesStart, valuesEnd - valuesStart).Trim();
+            int valuesEnd = CustomIndexOf.IndexOf(command, ')', valuesStart);
+
+            if (valuesStart >= valuesEnd || valuesStart < 0 || valuesEnd < 0)
+            {
+                throw new ArgumentException("Invalid values section syntax.");
+            }
+
+            string valuesSection = CustomTrimFunc.CustomTrim(CustomIndexOf.IndexOfSubstring(command, valuesStart, valuesEnd - valuesStart));
             var values = CustomSplit.SplitString(valuesSection, ',');
 
             if (columnNames.Count != values.Count)
             {
-               throw new ArgumentException("Number of columns does not match number of values.");
+                throw new ArgumentException("Number of columns does not match number of values.");
             }
 
             var rowData = new CustomDictionary<string, string>();
             for (int i = 0; i < columnNames.Count; i++)
             {
-              string columnName = columnNames[i].Trim();
-              string value = values[i].Trim();
+                string columnName = CustomTrimFunc.CustomTrim(columnNames[i]);
+                string value = CustomTrimFunc.CustomTrim(values[i]);
 
-              var column = table.Columns.FirstOrDefault(c => c.Name == columnName);
-              if (column == null)
-              {
-                 throw new ArgumentException($"Column '{columnName}' does not exist in table '{tableName}'.");
-              }
+                Column column = null;
+                foreach (var col in table.Columns)
+                {
+                    if (col.Name == columnName)
+                    {
+                        column = col;
+                        break;
+                    }
+                }
+                if (column == null)
+                {
+                    throw new ArgumentException($"Column '{columnName}' not found in table '{tableName}'.");
+                }
 
-              if (column.Type == "int" && !int.TryParse(value, out _))
-              {
-                  throw new ArgumentException($"Value '{value}' is not valid for column '{columnName}' of type 'int'.");
-              }
-
-              rowData[columnName] = value;
+                rowData[columnName] = value;
             }
 
             foreach (var column in table.Columns)
             {
-              if (!rowData.ContainsKey(column.Name))
-              {
-                if (column.DefaultValue != null)
+                if (!rowData.ContainsKey(column.Name))
                 {
-                  rowData[column.Name] = column.DefaultValue;
+                    if (column.DefaultValue != null)
+                    {
+                        rowData[column.Name] = column.DefaultValue;
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Missing value for column '{column.Name}' which has no default value.");
+                    }
                 }
-                else
-                {
-                   throw new ArgumentException($"Missing value for column '{column.Name}' which has no default value.");
-                }
-              }
             }
+            CustomList<string> rowContentList = new CustomList<string>();
+            foreach (var kv in rowData)
+            {
+                rowContentList.Add($"{kv.Key}:{kv.Value}");
+            }
+            string recordContent = CustomStringJoin.Join(", ", rowContentList);
 
-            string recordContent = string.Join(", ", rowData.Select(kv => $"{kv.Key}:{kv.Value}"));
             var recordData = Encoding.UTF8.GetBytes($"Table:{tableName}; {recordContent}");
             uint recordId = _recordStorage.Create(recordData);
-            Console.WriteLine($"Record inserted with ID {recordId} for table '{tableName}'.");
 
             table.RowCountFunc();
             Console.WriteLine($"Table '{tableName}' now has {table.RowCount} rows.");
-            
         }
 
         public bool TableExists(string tableName)
@@ -270,58 +289,136 @@ namespace KursovaSAAConsole2
             return _tables.Get(tableName) != null;
         }
 
-        
         public void GetRow(string command)
         {
-            try
+            Console.WriteLine($"Processing GET ROW command: {command}");
+
+            int getRowStart = CustomIndexOf.IndexOfSubstring(command, "GET ROW");
+            if (getRowStart < 0)
             {
-                Console.WriteLine($"Processing GET ROW command: {command}");
-
-                int getRowStart = CustomIndexOf.IndexOfSubstring(command, "GET ROW");
-                if (getRowStart < 0)
-                {
-                    throw new ArgumentException("Missing 'GET ROW' keyword.");
-                }
-
-                int fromIndex = CustomIndexOf.IndexOfSubstring(command, "FROM");
-                if (fromIndex < 0)
-                {
-                    throw new ArgumentException("Missing 'FROM' keyword.");
-                }
-
-                string rowIdsSection = command.Substring(getRowStart + "GET ROW".Length, fromIndex - getRowStart - "GET ROW".Length).Trim();
-                string tableName = command.Substring(fromIndex + "FROM".Length).Trim();
-
-                var rowIds = CustomSplit.SplitString(rowIdsSection, ',').Select(id => uint.Parse(id.Trim())).ToList();
-
-                var table = _tables.Get(tableName)?.Item2;
-                if (table == null)
-                {
-                    Console.WriteLine($"Error: Table '{tableName}' does not exist.");
-                    return;
-                }
-
-                Console.WriteLine("Id:\t" + string.Join("\t", table.Columns.Select(col => col.Name)));
-
-                foreach (var rowId in rowIds)
-                {
-                    var recordData = _recordStorage.Find(rowId);
-                    if (recordData == null || recordData.Length == 0)
-                    {
-                        Console.WriteLine($"Warning: Row with ID {rowId} not found or is invalid.");
-                        continue;
-                    }
-
-                    var rowValues = ParseRow(recordData, table.Columns);
-
-                    Console.WriteLine($"{rowId}\t" + string.Join("\t", rowValues));
-                }
+                throw new ArgumentException("Missing 'GET ROW' keyword.");
             }
-            catch (Exception ex)
+
+            int fromIndex = CustomIndexOf.IndexOfSubstring(command, "FROM");
+            if (fromIndex < 0)
             {
-                Console.WriteLine($"Error while processing GET ROW: {ex.Message}");
+                throw new ArgumentException("Missing 'FROM' keyword.");
+            }
+
+            string rowIdsSection = CustomIndexOf.IndexOfSubstring(command,getRowStart + "GET ROW".Length, fromIndex - getRowStart - "GET ROW".Length);
+            string tableName = CustomTrimFunc.CustomTrim(CustomIndexOf.IndexOfSubstring(command, fromIndex + "FROM".Length));
+
+
+            var rowIds = ParseRowIds(rowIdsSection);
+            var table = _tables.Get(tableName)?.Item2;
+            if (table == null)
+            {
+                Console.WriteLine($"Error: Table '{tableName}' does not exist.");
+                return;
+            }
+
+            PrintColumnNames(table.Columns);
+
+            foreach (var rowId in rowIds)
+            {
+                var recordData = _recordStorage.Find(rowId);
+                if (recordData == null || recordData.Length == 0)
+                {
+                    Console.WriteLine($"Warning: Row with ID {rowId} not found or is invalid.");
+                    continue;
+                }
+
+                var rowValues = ParseRow(recordData, table.Columns);
+                Console.WriteLine($"{rowId}\t" + CustomStringJoin.Join("\t", rowValues));
             }
         }
+        public void DeleteFrom(string command)
+        {
+            int deleteStart = CustomIndexOf.IndexOfSubstring(command, "DELETE FROM");
+            if (deleteStart < 0)
+            {
+                throw new ArgumentException("Missing 'DELETE FROM' keyword.");
+            }
+
+            int tableNameStart = deleteStart + "DELETE FROM".Length;
+            int rowSectionStart = CustomIndexOf.IndexOfSubstring(command, "ROW");
+            if (rowSectionStart < 0 || tableNameStart >= rowSectionStart)
+            {
+                throw new ArgumentException("Invalid syntax. Expected 'ROW' clause.");
+            }
+
+            string tableName = CustomTrimFunc.CustomTrim(CustomIndexOf.IndexOfSubstring(command, tableNameStart, rowSectionStart - tableNameStart));
+
+            string rowSection = CustomIndexOf.IndexOfSubstring(command,rowSectionStart + "ROW".Length);
+
+            var rowNumbers = new CustomList<uint>();
+            var rows = CustomSplit.SplitString(rowSection, ',');
+            foreach (var row in rows)
+            {
+                rowNumbers.Add(uint.Parse(row));
+            }
+
+            var table = GetTable(tableName);
+            if (table == null)
+            {
+                throw new InvalidOperationException($"Table '{tableName}' does not exist.");
+            }
+
+            foreach (var rowNumber in rowNumbers)
+            {
+                var recordId = rowNumber; 
+                _recordStorage.Delete(recordId);
+            }
+
+            string deletedRows = "";
+            foreach (var rowNumber in rowNumbers)
+            {
+                deletedRows += rowNumber + ", ";
+            }
+            deletedRows = deletedRows.TrimEnd(',', ' ');
+
+            Console.WriteLine($"Deleted rows: {deletedRows} from table '{tableName}'.");
+        }
+
+        private CustomList<uint> ParseRowIds(string rowIdsSection)
+        {
+            var rowIds = new CustomList<uint>();
+            int startIndex = 0;
+
+            for (int i = 0; i < rowIdsSection.Length; i++)
+            {
+                if (rowIdsSection[i] == ',')
+                {
+                    string numberString = CustomIndexOf.IndexOfSubstring(rowIdsSection,startIndex, i - startIndex);
+                    if (uint.TryParse(numberString, out uint rowId))
+                    {
+                        rowIds.Add(rowId);
+                    }
+                    startIndex = i + 1;
+                }
+                else if (i == rowIdsSection.Length - 1)
+                {
+                    string numberString = CustomIndexOf.IndexOfSubstring(rowIdsSection,startIndex);
+                    if (uint.TryParse(numberString, out uint rowId))
+                    {
+                        rowIds.Add(rowId);
+                    }
+                }
+            }
+
+            return rowIds;
+        }
+        private void PrintColumnNames(CustomList<Column> columns)
+        {
+            CustomList<string> columnNames = new CustomList<string>();
+            foreach (var col in columns)
+            {
+                columnNames.Add(col.Name);
+            }
+
+            Console.WriteLine(CustomStringJoin.Join("\t", columnNames)); 
+        }
+
         private CustomList<string> ParseRow(byte[] recordData, CustomList<Column> columns)
         {
             var rowValues = new CustomList<string>();
@@ -329,21 +426,42 @@ namespace KursovaSAAConsole2
 
             foreach (var column in columns)
             {
-                string value;
+                string value = string.Empty;
 
                 if (column.Type == "int")
                 {
-                    value = BitConverter.ToInt32(recordData, offset).ToString();
-                    offset += sizeof(int);
+                    if (recordData.Length >= offset + sizeof(int))
+                    {
+                        value = BitConverter.ToInt32(recordData, offset).ToString();
+                        offset += sizeof(int);
+                    }
+                    else
+                    {
+                        value = "Invalid int data";
+                    }
                 }
                 else if (column.Type == "string")
                 {
-                    int stringLength = BitConverter.ToInt32(recordData, offset);
-                    offset += sizeof(int);
-                    value = Encoding.UTF8.GetString(recordData, offset, stringLength);
-                    offset += stringLength;
+                    if (recordData.Length >= offset + sizeof(int))
+                    {
+                        int stringLength = BitConverter.ToInt32(recordData, offset);
+                        offset += sizeof(int);
+
+                        if (recordData.Length >= offset + stringLength)
+                        {
+                            value = Encoding.UTF8.GetString(recordData, offset, stringLength);
+                            offset += stringLength;
+                        }
+                        else
+                        {
+                            value = "Invalid string data";
+                        }
+                    }
+                    else
+                    {
+                        value = "Invalid string length";
+                    }
                 }
-                
                 else
                 {
                     value = "UnknownType";
@@ -364,7 +482,7 @@ namespace KursovaSAAConsole2
                 throw new ArgumentException("Invalid DROP TABLE command syntax. Correct format: DROP TABLE <TableName>");
             }
 
-            string tableName = commandParts[2].Trim();
+            string tableName = CustomTrimFunc.CustomTrim(commandParts[2]);
 
             if (!TableExists(tableName))
             {
@@ -377,20 +495,20 @@ namespace KursovaSAAConsole2
             _tables.Delete(tableName);
             Console.WriteLine($"Table '{tableName}' successfully dropped.");
         }
+
         public void DeleteAllRecordsForTable(string tableName)
         {
             var recordIds = _recordStorage.GetRecordIdsForTable(tableName);
-
+            
             foreach (var id in recordIds)
             {
                 _recordStorage.Delete(id);
             }
 
         }
-
         public void Dispose()
         {
-            _mainDatabase?.Dispose();
+            _mainDatabase.Dispose();
         }
     }
 }

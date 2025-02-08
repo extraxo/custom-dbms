@@ -37,19 +37,6 @@ namespace KursovaSAAConsole2
 
         public long GetHeader(int field)
         {
-            if (isDisposed)
-            {
-                throw new ObjectDisposedException("Block");
-            }
-
-            if (field < 0)
-            {
-                throw new IndexOutOfRangeException();
-            }
-            if (field >= (_storage.BlockHeaderSize / 8))
-            {
-                throw new ArgumentException("Invalid field: " + field);
-            }
 
             if (field < _cachedValue.Length)
             {
@@ -68,20 +55,6 @@ namespace KursovaSAAConsole2
         }
         public void SetHeader(int field, long value)
         {
-            if (isDisposed)
-            {
-                throw new ObjectDisposedException("Block");
-            }
-
-            if (field < 0)
-            {
-                throw new IndexOutOfRangeException();
-            }
-
-            if (field < _cachedValue.Length)
-            {
-                _cachedValue[field] = value;
-            }
 
             BufferReader.WriteBuffer((long)value, _data, field * 8);
             isSectorFull = true;
@@ -89,22 +62,7 @@ namespace KursovaSAAConsole2
 
         public void Read(byte[] destination, int destOffset, int srcOffset, int count)
         {
-            if (isDisposed)
-            {
-                throw new ObjectDisposedException("Block");
-            }
-
-            if (false == ((count >= 0) && ((count + srcOffset) <= _storage.BlockContentSize)))
-            {
-                throw new ArgumentOutOfRangeException("Requested count is outside of src bounds: Count=" + count, "count");
-            }
-
-            if (false == ((count + destOffset) <= destination.Length))
-            {
-                throw new ArgumentOutOfRangeException("Requested count is outside of dest bounds: Count=" + count);
-            }
-
-
+           
             var dataCopied = 0;
             var copyFromFirstSector = (_storage.BlockHeaderSize + srcOffset) < _storage.DiskSector;
             if (copyFromFirstSector)
@@ -146,22 +104,6 @@ namespace KursovaSAAConsole2
 
         public void Write(byte[] source, int srcOffset, int destOffset, int count)
         {
-            if (isDisposed)
-            {
-                throw new ObjectDisposedException("Block");
-            }
-
-            if (false == ((destOffset >= 0) && ((destOffset + count) <= _storage.BlockContentSize)))
-            {
-                throw new ArgumentOutOfRangeException("Count argument is outside of dest bounds: Count=" + count
-                    , "count");
-            }
-
-            if (false == ((srcOffset >= 0) && ((srcOffset + count) <= source.Length)))
-            {
-                throw new ArgumentOutOfRangeException("Count argument is outside of src bounds: Count=" + count
-                    , "count");
-            }
 
             if ((_storage.BlockHeaderSize + destOffset) < _storage.DiskSector)
             {
@@ -195,15 +137,6 @@ namespace KursovaSAAConsole2
                     written += bytesToWrite;
                 }
             }
-        }
-
-        public override string ToString()
-        {
-            return string.Format("[Block: Id={0}, ContentLength={1}, Prev={2}, Next={3}]"
-                , Id
-                , GetHeader(2)
-                , GetHeader(3)
-                , GetHeader(0));
         }
 
         protected virtual void OnDisposed(EventArgs e)

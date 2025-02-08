@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace KursovaSAAConsole2
 {
-    public class StringIntSerializer : ISerializer<Tuple<string, int>>
+    public class StringIntSerializer : ISerializer<CustomTuple<string, int>>
     {
-        public byte[] Serialize(Tuple<string, int> value)
+        public byte[] Serialize(CustomTuple<string, int> value)
         {
             var stringBytes = System.Text.Encoding.UTF8.GetBytes(value.Item1);
 
@@ -24,7 +24,7 @@ namespace KursovaSAAConsole2
             return data;
         }
 
-        public Tuple<string, int> Deserialize(byte[] buffer, int offset, int length)
+        public CustomTuple<string, int> Deserialize(byte[] buffer, int offset, int length)
         {
             var stringLength = BufferReader.ReadBufferInt32(buffer, offset);
             if (stringLength < 0 || stringLength > (16 * 1024))
@@ -33,7 +33,7 @@ namespace KursovaSAAConsole2
             }
             var stringValue = System.Text.Encoding.UTF8.GetString(buffer, offset + 4, stringLength);
             var integerValue = BufferReader.ReadBufferInt32(buffer, offset + 4 + stringLength);
-            return new Tuple<string, int>(stringValue, integerValue);
+            return new CustomTuple<string, int>(stringValue, integerValue);
         }
 
         public bool IsFixedSize
